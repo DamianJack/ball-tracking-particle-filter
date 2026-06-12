@@ -29,7 +29,6 @@ def simulate_observations(launches, noise_stddev, dropout_prob: float = 0.1, dt=
         obs = []
         for t, x, y in trajectory:
             ball_obs = BallObservation([x, y], noise_stddev, dropout_prob=dropout_prob)
-            print(ball_obs.observe())
             obs.append((t, *ball_obs.observe()))
         observations.append(obs)
 
