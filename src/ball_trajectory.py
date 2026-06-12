@@ -34,12 +34,10 @@ def simulate_ball(initial_position, speed, angle_degrees, dt=0.1):
     ball       = BallTrajectory(initial_position, speed, angle_degrees)
     t          = 0.0
     trajectory = []
-    prev_point = None
 
     while ball.get_position()[1] >= 0:
         pos = ball.get_position().copy()
         trajectory.append((float(t), float(pos[0]), float(pos[1])))
-        prev_point = (float(t), float(pos[0]), float(pos[1]))
         ball.update(dt)
         t += dt
 
