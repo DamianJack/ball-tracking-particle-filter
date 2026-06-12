@@ -14,13 +14,13 @@ class BallObservation:
         self.noise_stddev  = noise_stddev
         self.dropout_prob  = dropout_prob
 
-    def observe(self):
+    def observe(self) -> list:
         if np.random.rand() < self.dropout_prob:
             return []
         noise = np.random.normal(0, self.noise_stddev, size=2)
         return self.true_position + noise
 
-def simulate_observations(launches, noise_stddev, dropout_prob: float = 0.1, dt=0.1):
+def simulate_observations(launches, noise_stddev, dropout_prob: float = 0.1, dt=0.1) -> list:
     trajectories = simulate_n_balls(launches, dt=dt)
     observations = []
 
@@ -41,7 +41,7 @@ if __name__ == "__main__":
     ]
     noise_stddev = 5.0
     dropout_prob = 0.2
-    observations = simulate_observations(launches, noise_stddev, dropout_prob=dropout_prob)
+    observations = simulate_observations(launches, noise_stddev, dropout_prob=dropout_prob, dt=0.2)
     for obs in observations:
         for item in obs:
             if len(item) == 3:

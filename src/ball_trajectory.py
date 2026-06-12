@@ -29,7 +29,7 @@ class BallTrajectory:
     def get_velocity(self):
         return self.vel
 
-def simulate_ball(initial_position, speed, angle_degrees, dt=0.1):
+def simulate_ball(initial_position, speed, angle_degrees, dt=0.1) -> list:
 
     ball       = BallTrajectory(initial_position, speed, angle_degrees)
     t          = 0.0
@@ -43,7 +43,7 @@ def simulate_ball(initial_position, speed, angle_degrees, dt=0.1):
 
     return trajectory
 
-def simulate_n_balls(launches, dt=0.1):
+def simulate_n_balls(launches, dt=0.1) -> list:
     return [
         simulate_ball(
             launch["initial_position"],
