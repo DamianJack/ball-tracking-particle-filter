@@ -18,7 +18,6 @@ class BallObservation:
         if np.random.rand() < self.dropout_prob:
             return []
         noise = np.random.normal(0, self.noise_stddev, size=2)
-        print(noise)
         return self.true_position + noise
 
 def simulate_observations(launches, noise_stddev, dropout_prob: float = 0.1, dt=0.1):
