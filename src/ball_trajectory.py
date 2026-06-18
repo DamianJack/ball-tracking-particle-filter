@@ -8,26 +8,41 @@
 
 import numpy as np
 
+class Ball:
+    def __init__(self, x: float, y: float, vx: float, vy: float):
+        self.x = x
+        self.y = y
+        self.vx = vx
+        self.vy = vy
+    
+    def to_list(self):
+        return [self.x, self.y, self.vx, self.vy]
+    
+    def __repr__(self):
+        return f"Ball({self.x}, {self.y}, {self.vx}, {self.vy})"
+
 class BallTrajectory:
 
     def __init__(self, initial_position: list, speed: float, angle_degrees: float, gravity: float = -9.81):
 
         # Initialize position and velocity based on input parameters
-        self.pos     = np.array(initial_position, dtype=float)
-        angle        = np.deg2rad(angle_degrees)
-        self.vel     = np.array([speed * np.cos(angle), speed * np.sin(angle)], dtype=float)
+        angle      = np.deg2rad(angle_degrees)
+        vx         = speed * np.cos(angle)
+        vy         = speed * np.sin(angle)
+        self.ball  = Ball(initial_position[0], initial_position[1], vx, vy)
         self.gravity = gravity
 
     def update(self, dt):
         # Update velocity and position based on gravity and time step
-        self.vel[1] += self.gravity * dt
-        self.pos    += self.vel * dt
+        self.ball.vy += self.gravity * dt
+        self.ball.x  += self.ball.vx * dt
+        self.ball.y  += self.ball.vy * dt
 
     def get_position(self):
-        return self.pos
+        return [self.ball.x, self.ball.y]
 
     def get_velocity(self):
-        return self.vel
+        return [self.ball.vx, self.ball.vy]
 
 def simulate_ball(initial_position, speed, angle_degrees, dt=0.1) -> list:
 
