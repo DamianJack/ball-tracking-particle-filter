@@ -31,7 +31,11 @@ class BallObservation:
                 observations.append((t, None))
             else:
                 true_position = trajectory_point[1:]
-                observations.append((t, self.observe_position(true_position)))
+                observed = self.observe_position(true_position)
+                if observed[1] < 0:
+                    observations.append((t, None))  # below-ground reading treated as dropout
+                else:
+                    observations.append((t, observed))
 
         return observations
 
