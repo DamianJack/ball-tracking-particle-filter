@@ -88,9 +88,12 @@ class ParticleFilter:
         return likelihoods / likelihoods.sum()
 
     # ------------------------------------------------------------------
-    # RESAMPLE  –  multinomial resampling
+    # RESAMPLE  –  multinomial resampling (only when weight diversity is low)
     # ------------------------------------------------------------------
     def resample(self, weights):
+        neff = 1.0 / np.sum(np.square(weights))
+        if neff >= self.num_particles / 2:
+            return  # particles are well-spread; skip resampling
         indices  = np.random.choice(self.num_particles, size=self.num_particles,
                                     replace=True, p=weights)
         self.x   = self.x[indices]
