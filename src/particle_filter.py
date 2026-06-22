@@ -42,6 +42,7 @@ class ParticleFilter:
         self.vx = speed * np.cos(angle)
         self.vy = speed * np.sin(angle)
 
+        self.weights = np.ones(self.num_particles) / self.num_particles
         self._sync_particles()
 
     def _sync_particles(self):
@@ -90,34 +91,36 @@ class ParticleFilter:
     # ------------------------------------------------------------------
     # RESAMPLE  –  multinomial resampling (only when weight diversity is low)
     # ------------------------------------------------------------------
-    def resample(self, weights):
-        neff = 1.0 / np.sum(np.square(weights))
+    def resample(self):
+        neff = 1.0 / np.sum(np.square(self.weights))
         if neff >= self.num_particles / 2:
             return  # particles are well-spread; skip resampling
-        indices  = np.random.choice(self.num_particles, size=self.num_particles,
-                                    replace=True, p=weights)
-        self.x   = self.x[indices]
-        self.y   = self.y[indices]
-        self.vx  = self.vx[indices]
-        self.vy  = self.vy[indices]
+        indices      = np.random.choice(self.num_particles, size=self.num_particles,
+                                        replace=True, p=self.weights)
+        self.x       = self.x[indices]
+        self.y       = self.y[indices]
+        self.vx      = self.vx[indices]
+        self.vy      = self.vy[indices]
+        self.weights = np.ones(self.num_particles) / self.num_particles
         self._sync_particles()
 
     # ------------------------------------------------------------------
     # UPDATE  –  weight and resample in one call
     # ------------------------------------------------------------------
     def update(self, observation):
-        weights = self.likelihood(observation)
-        self.resample(weights)
+        self.weights = self.likelihood(observation)
+        self.resample()
 
     # ------------------------------------------------------------------
-    # ESTIMATE  –  return the mean state
+    # ESTIMATE  –  return the weighted mean state
     # ------------------------------------------------------------------
     def estimate(self):
+        w = self.weights
         return np.array([
-            np.mean(self.x),
-            np.mean(self.y),
-            np.mean(self.vx),
-            np.mean(self.vy),
+            np.average(self.x,  weights=w),
+            np.average(self.y,  weights=w),
+            np.average(self.vx, weights=w),
+            np.average(self.vy, weights=w),
         ])
 
     # ------------------------------------------------------------------
