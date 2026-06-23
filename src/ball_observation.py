@@ -43,10 +43,10 @@ class BallObservation:
 
 # Example usage:
 if __name__ == "__main__":
+    from plotting import BallObservationPlot
 
     launches = [
-        {"initial_position": [0, 0], "speed": 50, "angle_degrees": 45},
-        {"initial_position": [0, 0], "speed": 60, "angle_degrees": 30},
+        {"initial_position": [0, 0], "speed": 50, "angle_degrees": 45}
     ]
 
     trajectories      = simulate_n_balls(launches, dt=0.1)
@@ -64,3 +64,6 @@ if __name__ == "__main__":
                 print(f"Time: {obs[0]:.2f} s, Observed Position: {obs[1][0]:.2f}, {obs[1][1]:.2f}")
             else:
                 print(f"Time: {obs[0]:.2f} s, Observation Dropped")
+    
+    plotter = BallObservationPlot(trajectories, noise_stddev=3.0, dropout_prob=0.2)
+    plotter.visualize()
