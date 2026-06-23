@@ -136,3 +136,46 @@ class BallObservationPlot(BasePlot):
             xlabel="Time (s)",
             ylabel="Y Position (m)"
         )
+
+# ============================================================
+# CLASS: ParticleFilterTrajectoryPlot
+# ============================================================
+
+class ParticleFilterTrajectoryPlot:
+    def __init__(self, trajectory, observations, particle_filter, dt=0.1):
+        self.trajectory = trajectory
+        self.observations = observations
+        self.pf = particle_filter
+        self.dt = dt
+
+    def visualize(self):
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        # True trajectory
+        traj_x = [p[1] for p in self.trajectory]
+        traj_y = [p[2] for p in self.trajectory]
+        ax.plot(traj_x, traj_y, color="blue", linewidth=2, label="True Trajectory")
+
+        # Observations
+        obs_x = [o[1][0] for o in self.observations if o[1] is not None]
+        obs_y = [o[1][1] for o in self.observations if o[1] is not None]
+        ax.scatter(obs_x, obs_y, color="red", s=25, label="Observations")
+
+        # Particle filter estimates
+        self.pf.initialize_particles()  # keep this for correct alignment
+        est_x, est_y = [], []
+        for t, obs in self.observations:
+            est = self.pf.step(self.dt, obs)
+            est_x.append(est[0])
+            est_y.append(est[1])
+
+        ax.plot(est_x, est_y, color="green", linewidth=2, label="Particle Filter Estimate")
+
+        # Labels, legend, and grid
+        ax.set_xlabel("X Position (m)")
+        ax.set_ylabel("Y Position (m)")
+        ax.set_title("Particle Filter Tracking of Ball Trajectory")
+        ax.legend(loc="lower center", frameon=True)
+        ax.grid(True, alpha=0.4, linestyle="--")
+
+        plt.show()
