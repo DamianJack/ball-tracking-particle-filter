@@ -178,6 +178,7 @@ if __name__ == "__main__":
     obs_y = [obs[1][1] for obs in observations_ball0 if obs[1] is not None]
     ax.scatter(obs_x, obs_y, label="Observations", color="red", s=20)
     # Plot particle filter estimates
+    filters[0].initialize_particles()
     estimates_x = []
     estimates_y = []
     for t, obs in observations_ball0:
@@ -189,7 +190,6 @@ if __name__ == "__main__":
     ax.set_ylabel("Y Position (m)")
     ax.set_title("Particle Filter Tracking of Ball Trajectory")
     ax.legend()
-    
     plt.show()
 
     
