@@ -1,0 +1,41 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+env.bak/
+venv.bak/
+
+# IDEs and editors
+.vscode/
+
+# Logs and databases
+*.log
+*.db
+
+# Models, checkpoints, weights
+*.pt
+*.pth
+checkpoints/
+models/
+saved_models/
+runs/
+logs/
+tensorboard/
+*.ipynb
+
+# Data files (do not commit large datasets)
+data/
+*.csv
+
+# Backup and temp files
+*.bak
+*.tmp
