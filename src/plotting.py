@@ -142,11 +142,10 @@ class BallObservationPlot(BasePlot):
 # ============================================================
 
 class ParticleFilterTrajectoryPlot:
-    def __init__(self, trajectory, observations, particle_filter, dt=0.1):
+    def __init__(self, trajectory, observations, estimates):
         self.trajectory = trajectory
         self.observations = observations
-        self.pf = particle_filter
-        self.dt = dt
+        self.estimates = estimates  # pre-computed [(x, y), ...] from the single filter run
 
     def visualize(self):
         fig, ax = plt.subplots(figsize=(10, 6))
@@ -161,14 +160,9 @@ class ParticleFilterTrajectoryPlot:
         obs_y = [o[1][1] for o in self.observations if o[1] is not None]
         ax.scatter(obs_x, obs_y, color="red", s=25, label="Observations")
 
-        # Particle filter estimates
-        self.pf.initialize_particles()  # keep this for correct alignment
-        est_x, est_y = [], []
-        for t, obs in self.observations:
-            est = self.pf.step(self.dt, obs)
-            est_x.append(est[0])
-            est_y.append(est[1])
-
+        # Pre-computed estimates — same values that were printed
+        est_x = [e[0] for e in self.estimates]
+        est_y = [e[1] for e in self.estimates]
         ax.plot(est_x, est_y, color="green", linewidth=2, label="Particle Filter Estimate")
 
         # Labels, legend, and grid

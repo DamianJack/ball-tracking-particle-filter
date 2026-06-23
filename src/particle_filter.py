@@ -148,26 +148,21 @@ if __name__ == "__main__":
         for traj in trajectories
     ]
 
-    # One independent ParticleFilter per ball
-    filters = [
-        ParticleFilter(num_particles=1000, ball_observation=obs, area=100.0, noise=1.0)
-        for obs in observers
-    ]
-
-    # Run all filters for one ball's worth of observations as a smoke-test
     observations_ball0 = observers[0].simulate_observations()
-    observations_ball1 = observers[1].simulate_observations()
 
-    for t, obs in [observations_ball0, observations_ball1][0]:  # Just test the first ball for now
+    # Single filter run — estimates used for both printing and plotting
+    pf = ParticleFilter(num_particles=1000, ball_observation=observers[0], area=100.0, noise=1.0)
+    estimates = []
+    for t, obs in observations_ball0:
+        estimate = pf.step(dt=0.1, observation=obs)
+        estimates.append(estimate)
         print(f"Time: {t:.2f} s, Observation: {obs}")
-        estimate = filters[0].step(dt=0.1, observation=obs)
         print(f"Estimated State: x={estimate[0]:.2f}, y={estimate[1]:.2f}, "
               f"vx={estimate[2]:.2f}, vy={estimate[3]:.2f}\n")
-    
-plotter = ParticleFilterTrajectoryPlot(
-    trajectory=trajectories[0],
-    observations=observations_ball0,
-    particle_filter=filters[0],
-    dt=0.1
-)
-plotter.visualize()
+
+    plotter = ParticleFilterTrajectoryPlot(
+        trajectory=trajectories[0],
+        observations=observations_ball0,
+        estimates=estimates
+    )
+    plotter.visualize()
