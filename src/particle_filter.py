@@ -18,26 +18,26 @@ class Particle(Ball):
 
 
 class ParticleFilter:
-    def __init__(self, num_particles: int, ball_observation: BallObservation, 
-                 area: float = 100.0, noise: float = 0.2):
+    def __init__(self, num_particles: int, ball_observation: BallObservation,
+                 area: float = 100.0, noise: float = 0.2, gravity: float = -9.81):
 
         self.num_particles    = num_particles
         self.ball_observation = ball_observation
         self.area             = area
         self.noise            = noise
+        self.gravity          = gravity
+        self.rng              = np.random.default_rng()
         self.initialize_particles()
 
     # ------------------------------------------------------------------
     # INITIALISE
     # ------------------------------------------------------------------
     def initialize_particles(self):
-        rng = np.random.default_rng()
+        self.x  = self.rng.uniform(-self.area/2, self.area/2, self.num_particles)
+        self.y  = self.rng.uniform(0, self.area/2, self.num_particles)
 
-        self.x  = rng.uniform(-self.area/2, self.area/2, self.num_particles)
-        self.y  = rng.uniform(0, self.area/2, self.num_particles)
-
-        speed   = rng.uniform(0.0, 60.0, self.num_particles)
-        angle   = rng.uniform(0.0, 2.0 * np.pi, self.num_particles)
+        speed   = self.rng.uniform(0.0, 60.0, self.num_particles)
+        angle   = self.rng.uniform(0.0, np.pi, self.num_particles)  # upward launches only
 
         self.vx = speed * np.cos(angle)
         self.vy = speed * np.sin(angle)
@@ -53,19 +53,21 @@ class ParticleFilter:
     # PREDICT  –  projectile motion + process noise
     # ------------------------------------------------------------------
     def predict(self, dt: float):
-
-        GRAVITY = -9.81  # m/s²
-
         # 1. Physics step (deterministic)
         self.x  += self.vx * dt
         self.y  += self.vy * dt
-        self.vy += GRAVITY * dt        
+        self.vy += self.gravity * dt
 
-        # 2. Process noise 
-        self.x  += np.random.normal(0, self.noise, self.num_particles)
-        self.y  += np.random.normal(0, self.noise, self.num_particles)
-        self.vx += np.random.normal(0, self.noise * 0.5, self.num_particles)
-        self.vy += np.random.normal(0, self.noise * 0.5, self.num_particles)
+        # 2. Process noise (consistent RNG)
+        self.x  += self.rng.normal(0, self.noise,       self.num_particles)
+        self.y  += self.rng.normal(0, self.noise,       self.num_particles)
+        self.vx += self.rng.normal(0, self.noise * 0.5, self.num_particles)
+        self.vy += self.rng.normal(0, self.noise * 0.5, self.num_particles)
+
+        # 3. Ground clamp: particles cannot exist below y=0
+        grounded          = self.y < 0
+        self.y[grounded]  = 0.0
+        self.vy[grounded] = 0.0
 
         self._sync_particles()
         return self.particles
@@ -74,10 +76,6 @@ class ParticleFilter:
     # LIKELIHOOD  –  how well does each particle match the observation?
     # ------------------------------------------------------------------
     def likelihood(self, observation):
-        if observation is None:
-            # Sensor dropout: no information → keep weights uniform
-            return np.ones(self.num_particles) / self.num_particles
-
         obs_x, obs_y = observation
         distances    = np.sqrt((self.x - obs_x)**2 + (self.y - obs_y)**2)
 
@@ -108,7 +106,8 @@ class ParticleFilter:
     # UPDATE  –  weight and resample in one call
     # ------------------------------------------------------------------
     def update(self, observation):
-        self.weights = self.likelihood(observation)
+        if observation is not None:
+            self.weights = self.likelihood(observation)
         self.resample()
 
     # ------------------------------------------------------------------
@@ -167,7 +166,7 @@ if __name__ == "__main__":
 
     import matplotlib.pyplot as plt
 
-    plt, ax = plt.subplots()
+    fig, ax = plt.subplots()
     # Plot true trajectory
     traj = trajectories[0]
     traj_x = [pos[1] for pos in traj]
