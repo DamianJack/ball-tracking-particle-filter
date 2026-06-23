@@ -93,8 +93,8 @@ class ParticleFilter:
         neff = 1.0 / np.sum(np.square(self.weights))
         if neff >= self.num_particles / 2:
             return  # particles are well-spread; skip resampling
-        indices      = np.random.choice(self.num_particles, size=self.num_particles,
-                                        replace=True, p=self.weights)
+        indices      = self.rng.choice(self.num_particles, size=self.num_particles,
+                                      replace=True, p=self.weights)
         self.x       = self.x[indices]
         self.y       = self.y[indices]
         self.vx      = self.vx[indices]
