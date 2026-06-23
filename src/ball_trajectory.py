@@ -73,10 +73,11 @@ def simulate_n_balls(launches, dt=0.1) -> list:
 
 # Example usage:
 if __name__ == "__main__":
+    
+    from plotting import BallTrajectoryPlot
 
     launches = [
-        {"initial_position": [0, 0], "speed": 50, "angle_degrees": 45},
-        {"initial_position": [0, 0], "speed": 60, "angle_degrees": 30},
+        {"initial_position": [0, 0], "speed": 50, "angle_degrees": 45}
     ]
 
     trajectories = simulate_n_balls(launches)
@@ -84,3 +85,7 @@ if __name__ == "__main__":
         print(f"Trajectory {i+1}:")
         for pos in traj:
             print(pos)
+
+    plotter = BallTrajectoryPlot(launches)
+    plotter.visualize()
+
