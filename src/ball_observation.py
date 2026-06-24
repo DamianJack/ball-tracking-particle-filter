@@ -8,12 +8,12 @@ import numpy as np
 from ball_trajectory import simulate_n_balls
 
 class BallObservation:
-    def __init__(self, trajectory, noise_stddev: float, dropout_prob: float, rng=None):
+    def __init__(self, trajectory, noise_stddev: float, dropout_prob: float):
 
         self.trajectory     = trajectory
         self.noise_stddev   = noise_stddev
         self.dropout_prob   = dropout_prob
-        self.rng            = rng if rng is not None else np.random.default_rng()
+        self.rng            = np.random.default_rng()
 
     def is_dropped(self, t):
         return self.rng.random() < self.dropout_prob
