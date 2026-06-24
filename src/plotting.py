@@ -158,12 +158,12 @@ class ParticleFilterTrajectoryPlot:
         # Observations
         obs_x = [o[1][0] for o in self.observations if o[1] is not None]
         obs_y = [o[1][1] for o in self.observations if o[1] is not None]
-        ax.scatter(obs_x, obs_y, color="red", s=25, label="Observations")
+        ax.scatter(obs_x, obs_y, color="green", s=25, label="Observations")
 
         # Pre-computed estimates — same values that were printed
         est_x = [e[0] for e in self.estimates]
         est_y = [e[1] for e in self.estimates]
-        ax.plot(est_x, est_y, color="green", linewidth=2, label="Particle Filter Estimate")
+        ax.plot(est_x, est_y, color="lightcoral", linestyle="--",linewidth=2, label="Particle Filter Estimate")
 
         # Labels, legend, and grid
         ax.set_xlabel("X Position (m)")

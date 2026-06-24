@@ -137,8 +137,7 @@ class ParticleFilter:
 # ======================================================================
 if __name__ == "__main__":
     launches = [
-        {"initial_position": [0, 0], "speed": 50, "angle_degrees": 45},
-        {"initial_position": [0, 0], "speed": 60, "angle_degrees": 30},
+        {"initial_position": [0, 0], "speed": 50, "angle_degrees": 45}
     ]
 
     trajectories = simulate_n_balls(launches, dt=0.1)
