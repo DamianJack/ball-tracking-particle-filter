@@ -28,6 +28,7 @@ class ParticleFilter:
         self.gravity          = gravity
         self._sigma           = noise_stddev
         self.rng              = np.random.default_rng()
+        self.particles_history = []
         self.initialize_particles()
 
     # ------------------------------------------------------------------
@@ -90,7 +91,8 @@ class ParticleFilter:
     # ------------------------------------------------------------------
     def resample(self):
         neff = 1.0 / np.sum(np.square(self.weights))
-        if neff >= self.num_particles / 2:
+       # if neff >= self.num_particles / 2:
+        if neff >= self.num_particles * 0.9:
             return  # particles are well-spread; skip resampling
         indices      = self.rng.choice(self.num_particles, size=self.num_particles,
                                       replace=True, p=self.weights)
@@ -127,6 +129,7 @@ class ParticleFilter:
     def step(self, dt: float, observation):
         self.predict(dt)
         self.update(observation)
+        self.particles_history.append(self.particles.copy())
         return self.estimate()
 
 
@@ -163,3 +166,12 @@ if __name__ == "__main__":
         estimates=estimates
     )
     plotter.visualize()
+ 
+    from plotting import ParticleEvolutionAnimation
+
+    anim = ParticleEvolutionAnimation(
+        particle_filter=pf,
+        trajectory=trajectories[0],
+        estimates=estimates
+    )
+    anim.animate()

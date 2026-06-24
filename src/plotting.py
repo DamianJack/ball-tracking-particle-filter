@@ -173,3 +173,99 @@ class ParticleFilterTrajectoryPlot:
         ax.grid(True, alpha=0.4, linestyle="--")
 
         plt.show()
+
+
+
+class VelocityPositionPlot:
+    def __init__(self, trajectory, estimates, dt=0.1):
+        """
+        trajectory: list of [t, x, y]
+        estimates: list of [x, y, vx, vy]
+        """
+        self.trajectory = trajectory
+        self.estimates = estimates
+        self.dt = dt
+
+    def visualize(self):
+        fig, ax = plt.subplots(figsize=(10, 5))
+
+        # -----------------------------
+        # REAL VELOCITY (computed from positions)
+        # -----------------------------
+        traj_x = [p[1] for p in self.trajectory]
+        traj_y = [p[2] for p in self.trajectory]
+
+        real_v = []
+        for i in range(1, len(self.trajectory)):
+            dx = traj_x[i] - traj_x[i-1]
+            dy = traj_y[i] - traj_y[i-1]
+            v = np.sqrt(dx*dx + dy*dy) / self.dt
+            real_v.append(v)
+
+        real_x = traj_x[1:]  # align lengths
+
+        # -----------------------------
+        # ESTIMATED VELOCITY (from PF)
+        # -----------------------------
+        est_v = [np.sqrt(e[2]**2 + e[3]**2) for e in self.estimates]
+        est_x = [e[0] for e in self.estimates]
+
+        # -----------------------------
+        # PLOT
+        # -----------------------------
+        ax.plot(real_x, real_v, color="red", linewidth=2, label="Real Velocity")
+        ax.plot(est_x, est_v, color="blue", linestyle="--", linewidth=2, label="Estimated Velocity")
+
+        ax.set_xlabel("Ball X Position (m)")
+        ax.set_ylabel("Velocity (m/s)")
+        ax.set_title("Velocity vs Ball Position")
+        ax.legend()
+        ax.grid(True, linestyle="--", alpha=0.4)
+
+        plt.tight_layout()
+        plt.show()
+
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+import numpy as np
+
+class ParticleEvolutionAnimation:
+    def __init__(self, particle_filter, trajectory, estimates):
+        self.pf = particle_filter
+        self.trajectory = trajectory
+        self.estimates = estimates
+
+    def animate(self):
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.set_xlim(0, max(p[1] for p in self.trajectory) + 10)
+        ax.set_ylim(0, max(p[2] for p in self.trajectory) + 10)
+        ax.set_xlabel("X Position (m)")
+        ax.set_ylabel("Y Position (m)")
+        ax.set_title("Particle Evolution Over Time")
+
+        # True and estimated trajectories
+        traj_x = [p[1] for p in self.trajectory]
+        traj_y = [p[2] for p in self.trajectory]
+        est_x = [e[0] for e in self.estimates]
+        est_y = [e[1] for e in self.estimates]
+
+        ax.plot(traj_x, traj_y, color="blue", linewidth=2, label="True Trajectory")
+        ax.plot(est_x, est_y, color="lightgreen", linestyle="--", linewidth=2.5, label="PF Estimate")
+        ax.legend(loc="upper right")
+
+        # Particle scatter
+        scat = ax.scatter([], [], color="gray", alpha=0.3, s=10)
+
+        # Update function for animation
+        def update(frame):
+            particles = self.pf.particles_history[frame]
+            scat.set_offsets(particles[:, :2])
+            return scat,
+
+        ani = animation.FuncAnimation(
+            fig, update, frames=len(self.pf.particles_history),
+            interval=100, blit=True, repeat=False
+        )
+
+        plt.tight_layout()
+        plt.show()
