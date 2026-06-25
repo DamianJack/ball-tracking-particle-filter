@@ -223,11 +223,3 @@ if __name__ == "__main__":
         print(f"t={t:5.2f}s  ||" + "".join(
             f"{fmt(obs_list[b])} | {fmt(est[b, :2] if step_idx < len(trajectories[b]) else None)}||"
             for b in range(N_BALLS)))
-
-    # Plot each ball
-    for i, (traj, obs_seq) in enumerate(zip(trajectories, obs_sequences)):
-        ParticleFilterTrajectoryPlot(
-            trajectory=traj,
-            observations=obs_seq,
-            estimates=estimated_trajectories[i],
-        ).visualize()

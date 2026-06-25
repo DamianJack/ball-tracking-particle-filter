@@ -19,11 +19,12 @@ class BasePlot:
         }
 
     def finalize(self, title, xlabel, ylabel):
+        self.ax.set_title(title)
         self.ax.set_xlabel(xlabel)
         self.ax.set_ylabel(ylabel)
-        self.ax.set_title(title)
-        self.ax.legend(loc="upper right")
-        self.ax.grid(True)
+        self.ax.grid(True, alpha=0.4)
+        self.ax.legend()
+        plt.tight_layout()
         plt.show()
 
 
@@ -148,86 +149,48 @@ class ParticleFilterTrajectoryPlot:
         self.estimates = estimates  # pre-computed [(x, y), ...] from the single filter run
 
     def visualize(self):
+        plt.close('all')
         fig, ax = plt.subplots(figsize=(10, 6))
 
-        # True trajectory
         traj_x = [p[1] for p in self.trajectory]
         traj_y = [p[2] for p in self.trajectory]
         ax.plot(traj_x, traj_y, color="blue", linewidth=2, label="True Trajectory")
 
-        # Observations
         obs_x = [o[1][0] for o in self.observations if o[1] is not None]
         obs_y = [o[1][1] for o in self.observations if o[1] is not None]
         ax.scatter(obs_x, obs_y, color="green", s=25, label="Observations")
 
-        # Pre-computed estimates — same values that were printed
+        # Dropout visualization
+        dropout_times = [o[0] for o in self.observations if o[1] is None]
+        for t in dropout_times:
+            ax.axvspan(t - 0.05, t + 0.05, color="red", alpha=0.2)
+            ax.text(t, max(traj_y) * 0.9, f"DROPOUT\n{t:.2f}s", ha="center", va="center",
+                fontsize=9, fontweight="bold",
+                bbox=dict(boxstyle="round,pad=0.3", fc="yellow", ec="black"))
+
+        # Add one legend entry for dropout
+        if dropout_times:
+            ax.axvspan(dropout_times[0] - 0.05, dropout_times[0] + 0.05,
+                   color="red", alpha=0.2, label="Dropout Period")
+
         est_x = [e[0] for e in self.estimates]
         est_y = [e[1] for e in self.estimates]
-        ax.plot(est_x, est_y, color="lightcoral", linestyle="--",linewidth=2, label="Particle Filter Estimate")
+        ax.plot(est_x, est_y, color="lightcoral", linestyle="--", linewidth=2,
+            label="Particle Filter Estimate")
 
-        # Labels, legend, and grid
         ax.set_xlabel("X Position (m)")
         ax.set_ylabel("Y Position (m)")
         ax.set_title("Particle Filter Tracking of Ball Trajectory")
         ax.legend(loc="lower center", frameon=True)
         ax.grid(True, alpha=0.4, linestyle="--")
 
-        plt.show()
+    plt.show()
 
-
-
-class VelocityPositionPlot:
-    def __init__(self, trajectory, estimates, dt=0.1):
-        """
-        trajectory: list of [t, x, y]
-        estimates: list of [x, y, vx, vy]
-        """
-        self.trajectory = trajectory
-        self.estimates = estimates
-        self.dt = dt
-
-    def visualize(self):
-        fig, ax = plt.subplots(figsize=(10, 5))
-
-        # -----------------------------
-        # REAL VELOCITY (computed from positions)
-        # -----------------------------
-        traj_x = [p[1] for p in self.trajectory]
-        traj_y = [p[2] for p in self.trajectory]
-
-        real_v = []
-        for i in range(1, len(self.trajectory)):
-            dx = traj_x[i] - traj_x[i-1]
-            dy = traj_y[i] - traj_y[i-1]
-            v = np.sqrt(dx*dx + dy*dy) / self.dt
-            real_v.append(v)
-
-        real_x = traj_x[1:]  # align lengths
-
-        # -----------------------------
-        # ESTIMATED VELOCITY (from PF)
-        # -----------------------------
-        est_v = [np.sqrt(e[2]**2 + e[3]**2) for e in self.estimates]
-        est_x = [e[0] for e in self.estimates]
-
-        # -----------------------------
-        # PLOT
-        # -----------------------------
-        ax.plot(real_x, real_v, color="red", linewidth=2, label="Real Velocity")
-        ax.plot(est_x, est_v, color="blue", linestyle="--", linewidth=2, label="Estimated Velocity")
-
-        ax.set_xlabel("Ball X Position (m)")
-        ax.set_ylabel("Velocity (m/s)")
-        ax.set_title("Velocity vs Ball Position")
-        ax.legend()
-        ax.grid(True, linestyle="--", alpha=0.4)
-
-        plt.tight_layout()
-        plt.show()
-
+# ============================================================
+# CLASS: ParticleEvolutionAnimation
+# ============================================================
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-import numpy as np
 
 class ParticleEvolutionAnimation:
     def __init__(self, particle_filter, trajectory, estimates):
@@ -269,3 +232,70 @@ class ParticleEvolutionAnimation:
 
         plt.tight_layout()
         plt.show()
+
+# ============================================================
+# CLASS: nBallTrajectoryPlot
+# ============================================================
+class nBallTrajectoryPlot(BasePlot):
+    def __init__(self, trajectories, observations, estimates):
+        super().__init__(figsize=(10, 6))
+        self.trajectories = trajectories
+        self.observations = observations
+        self.estimates = estimates
+
+    def visualize(self):
+        true_colors = ["red", "blue", "green", "orange", "purple"]
+
+        for i, (traj, obs_seq, est_seq) in enumerate(
+            zip(self.trajectories, self.observations, self.estimates)
+        ):
+            # -------------------------
+            # TRUE TRAJECTORY (solid)
+            # -------------------------
+            true_x = [p[1] for p in traj]
+            true_y = [p[2] for p in traj]
+
+            base_color = true_colors[i % len(true_colors)]
+            self.ax.plot(
+                true_x, true_y,
+                color=base_color,
+                linewidth=2,
+                label=f"True Ball {i+1}"
+            )
+
+            # ----------------------------------------------------
+            # ESTIMATED TRAJECTORY (lighter dotted version)
+            # ----------------------------------------------------
+            est_x = [e[0] for e in est_seq]
+            est_y = [e[1] for e in est_seq]
+
+            # lighter version of the same color
+            light_color = mcolors.to_rgba(base_color, alpha=0.45)
+
+            self.ax.plot(
+                est_x, est_y,
+                linestyle="--",
+                color=light_color,
+                linewidth=2,
+                label=f"Est Ball {i+1}"
+            )
+
+            # -------------------------
+            # OBSERVATIONS (cyan dots)
+            # -------------------------
+            obs_x = [o[1][0] for o in obs_seq if o[1] is not None]
+            obs_y = [o[1][1] for o in obs_seq if o[1] is not None]
+
+            self.ax.scatter(
+                obs_x, obs_y,
+                color="cyan",
+                s=12,
+                alpha=0.5,
+                label="Observations" if i == 0 else None
+            )
+
+        self.finalize(
+            title="N-Ball Trajectories: True vs Estimated",
+            xlabel="X Position (m)",
+            ylabel="Y Position (m)"
+        )
