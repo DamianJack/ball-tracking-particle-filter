@@ -58,6 +58,10 @@ class NBallParticleFilter:
         self.state[:, :, 2] += self.rng.normal(0, self.noise * 0.5, (N, B))  
         self.state[:, :, 3] += self.rng.normal(0, self.noise * 0.5, (N, B))  
 
+        below = self.state[:, :, 1] < 0
+        self.state[:, :, 1][below] = 0.0
+        self.state[:, :, 3][below] = 0.0
+
     def likelihood(self, observations: list) -> np.ndarray:
 
         obs = [o for o in observations if o is not None]
@@ -148,7 +152,7 @@ class NBallParticleFilter:
 # ======================================================================
 
 def assign_estimates(est: np.ndarray, true_positions: list) -> np.ndarray:
-    
+
     assigned = np.empty_like(est)
     used = set()
     for b, tp in enumerate(true_positions):
@@ -161,45 +165,23 @@ def assign_estimates(est: np.ndarray, true_positions: list) -> np.ndarray:
 
 if __name__ == "__main__":
 
-    SAMPLE_SETS = {
-        1: [  # Different angles, wide separation 
-            {"initial_position": [0,  0], "speed": 50, "angle_degrees": 45},
-            {"initial_position": [20, 0], "speed": 60, "angle_degrees": 30},
-        ],
-        2: [  # Steep vs shallow 
-            {"initial_position": [0,  0], "speed": 55, "angle_degrees": 75},
-            {"initial_position": [15, 0], "speed": 45, "angle_degrees": 25},
-        ],
-        3: [  # Similar speeds and angles 
-            {"initial_position": [0, 0], "speed": 50, "angle_degrees": 45},
-            {"initial_position": [5, 0], "speed": 52, "angle_degrees": 47},
-        ],
-        4: [  # Fast vs slow, different heights
-            {"initial_position": [0,  0], "speed": 70, "angle_degrees": 35},
-            {"initial_position": [10, 0], "speed": 35, "angle_degrees": 65},
-            {"initial_position": [20, 0], "speed": 55, "angle_degrees": 50},
-        ],
-    }
-
-    SAMPLE = 4      
-    launches = SAMPLE_SETS[SAMPLE]
-
+    launches     = [{"initial_position": [0,  0], "speed": 70, "angle_degrees": 35},
+                    {"initial_position": [10, 0], "speed": 35, "angle_degrees": 65},
+                    {"initial_position": [20, 0], "speed": 55, "angle_degrees": 50}]
     DT           = 0.1
     N_BALLS      = len(launches)
     NOISE_STDDEV = 3.0
     DROPOUT_PROB = 0.02
-    trajectories = simulate_n_balls(launches, dt=DT)
 
+    trajectories  = simulate_n_balls(launches, dt=DT)
     observers     = [BallObservation(traj, noise_stddev=NOISE_STDDEV, dropout_prob=DROPOUT_PROB)
                      for traj in trajectories]
     obs_sequences = [obs.simulate_observations() for obs in observers]
 
-    pf = NBallParticleFilter(num_particles=5000, n_balls=N_BALLS, noise_stddev=NOISE_STDDEV, area=100.0, noise=NOISE_STDDEV/2)
+    pf            = NBallParticleFilter(num_particles=5000, n_balls=N_BALLS, noise_stddev=NOISE_STDDEV, area=100.0, noise=NOISE_STDDEV/2)
 
     estimated_trajectories = {i: [] for i in range(N_BALLS)}
-
-    # Use longest sequence so no ball is cut short
-    n_steps = max(len(seq) for seq in obs_sequences)
+    n_steps                = max(len(seq) for seq in obs_sequences)
 
     _cw = 15  # width of each obs/est value cell
     print("=" * (10 + 2 + (N_BALLS * (_cw * 2 + 3 + 2))))
@@ -226,8 +208,4 @@ if __name__ == "__main__":
 
     # Plot each ball
     for i, (traj, obs_seq) in enumerate(zip(trajectories, obs_sequences)):
-        ParticleFilterTrajectoryPlot(
-            trajectory=traj,
-            observations=obs_seq,
-            estimates=estimated_trajectories[i],
-        ).visualize()
+        ParticleFilterTrajectoryPlot(trajectory=traj, observations=obs_seq, estimates=estimated_trajectories[i]).visualize()
