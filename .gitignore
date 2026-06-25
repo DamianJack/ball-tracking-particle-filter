@@ -30,7 +30,6 @@ saved_models/
 runs/
 logs/
 tensorboard/
-*.ipynb
 
 # Data files (do not commit large datasets)
 data/
