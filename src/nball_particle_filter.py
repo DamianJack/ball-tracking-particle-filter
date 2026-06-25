@@ -59,6 +59,7 @@ class NBallParticleFilter:
         self.state[:, :, 3] += self.rng.normal(0, self.noise * 0.5, (N, B))  
 
     def likelihood(self, observations: list) -> np.ndarray:
+
         obs = [o for o in observations if o is not None]
         m   = len(obs)
 
@@ -104,11 +105,13 @@ class NBallParticleFilter:
         self.weights = np.ones(self.num_particles) / self.num_particles
 
     def update(self, observations: list):
+
         self.weights *= self.likelihood(observations)
         self.weights /= self.weights.sum()
         self.resample()
 
     def estimate_states(self) -> np.ndarray:
+
         per_slot    = np.einsum('i,ijk->jk', self.weights, self.state)  # (n_balls, 4) fallback
 
         all_states  = self.state.reshape(-1, 4)                          # (N*B, 4)
@@ -143,12 +146,14 @@ class NBallParticleFilter:
 # ======================================================================
 # EXAMPLE USAGE
 # ======================================================================
+
 def assign_estimates(est: np.ndarray, true_positions: list) -> np.ndarray:
+    
     assigned = np.empty_like(est)
     used = set()
     for b, tp in enumerate(true_positions):
         tp   = np.array(tp)
-        best = min((j for j in range(N_BALLS) if j not in used),
+        best = min((j for j in range(len(est)) if j not in used),
                     key=lambda j: np.linalg.norm(est[j, :2] - tp))
         assigned[b] = est[best]
         used.add(best)
@@ -172,6 +177,7 @@ if __name__ == "__main__":
         4: [  # Fast vs slow, different heights
             {"initial_position": [0,  0], "speed": 70, "angle_degrees": 35},
             {"initial_position": [10, 0], "speed": 35, "angle_degrees": 65},
+            {"initial_position": [20, 0], "speed": 55, "angle_degrees": 50},
         ],
     }
 
@@ -180,7 +186,7 @@ if __name__ == "__main__":
 
     DT           = 0.1
     N_BALLS      = len(launches)
-    NOISE_STDDEV = 6.0
+    NOISE_STDDEV = 3.0
     DROPOUT_PROB = 0.02
     trajectories = simulate_n_balls(launches, dt=DT)
 
@@ -195,29 +201,28 @@ if __name__ == "__main__":
     # Use longest sequence so no ball is cut short
     n_steps = max(len(seq) for seq in obs_sequences)
 
+    _cw = 15  # width of each obs/est value cell
+    print("=" * (10 + 2 + (N_BALLS * (_cw * 2 + 3 + 2))))
+    print(f"{'TIME STEP':^10}||" + "".join(f"{'BALL '+str(b):^{_cw*2+3}}||" for b in range(N_BALLS)))
+    print("=" * (10 + 2 + (N_BALLS * (_cw * 2 + 3 + 2))))
+    print(f"{'':10}||" + "".join(f"{'Obs.':^{_cw}} | {'Est.':^{_cw}}||" for b in range(N_BALLS)))
+    print("-" * (10 + 2 + (N_BALLS * (_cw * 2 + 3 + 2))))
+
+    fmt = lambda v: f"({v[0]:6.1f},{v[1]:6.1f})" if v is not None else f"{'N/A':^{_cw}}"
+
     for step_idx in range(n_steps):
-        # Time from whichever sequence still has data at this step
-        t = next(obs_sequences[b][step_idx][0]
-                 for b in range(N_BALLS) if step_idx < len(obs_sequences[b]))
-
-        # None for any ball that has already landed
-        obs_list = [obs_sequences[b][step_idx][1] if step_idx < len(obs_sequences[b]) else None
-                    for b in range(N_BALLS)]
-
-        est = pf.step(dt=DT, observations=obs_list)
-
-        # True pos: clamp to last known point for landed balls
-        true_pos = [trajectories[b][min(step_idx, len(trajectories[b]) - 1)][1:3]
-                    for b in range(N_BALLS)]
-        est = assign_estimates(est, true_pos)
+        t        = next(obs_sequences[b][step_idx][0] for b in range(N_BALLS) if step_idx < len(obs_sequences[b]))
+        obs_list = [obs_sequences[b][step_idx][1] if step_idx < len(obs_sequences[b]) else None for b in range(N_BALLS)]
+        true_pos = [trajectories[b][min(step_idx, len(trajectories[b])-1)][1:3] for b in range(N_BALLS)]
+        est      = assign_estimates(pf.step(dt=DT, observations=obs_list), true_pos)
 
         for b in range(N_BALLS):
-            if step_idx < len(trajectories[b]):   # only store while ball is in flight
+            if step_idx < len(trajectories[b]):
                 estimated_trajectories[b].append(est[b])
 
-        print(f"t={t:.2f}s  " +
-              "  ".join(f"Ball{b}: ({estimated_trajectories[b][-1][0]:.1f}, {estimated_trajectories[b][-1][1]:.1f})"
-                        for b in range(N_BALLS)))
+        print(f"t={t:5.2f}s  ||" + "".join(
+            f"{fmt(obs_list[b])} | {fmt(est[b, :2] if step_idx < len(trajectories[b]) else None)}||"
+            for b in range(N_BALLS)))
 
     # Plot each ball
     for i, (traj, obs_seq) in enumerate(zip(trajectories, obs_sequences)):
