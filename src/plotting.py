@@ -11,7 +11,6 @@ from ball_observation import BallObservation
 class BasePlot:
     def __init__(self, figsize=(12, 6)):
         self.fig, self.ax = plt.subplots(figsize=figsize)
-        # LIST, not dict → avoids KeyError
         self.colors = ["red", "blue", "green", "orange", "purple", "brown"]
 
     def finish(self, title, xlabel, ylabel):
@@ -27,7 +26,7 @@ class BasePlot:
 # ============================================================
 # MERGE DROPOUT REGIONS
 # ============================================================
-def merge_dropout(obs):
+def merge_dropout(obs, min_duration=0.15):
     regions = []
     active = False
     start = None
@@ -43,7 +42,8 @@ def merge_dropout(obs):
     if active:
         regions.append((start, obs[-1][0]))
 
-    return regions
+    # Filter out tiny dropout blips
+    return [(s, e) for s, e in regions if e - s >= min_duration]
 
 
 # ============================================================
@@ -61,14 +61,17 @@ class BallTrajectoryPlot(BasePlot):
             y = [p[2] for p in traj]
             self.ax.plot(x, y, color=c, linewidth=2, label=f"Ball {i+1}")
 
+            # Landing marker
+            self.ax.scatter(x[-1], y[-1], s=120, color=c, edgecolor="black")
+
         self.finish("Ball Trajectories", "X Position (m)", "Y Position (m)")
 
 
 # ============================================================
-# 2) BallObservationPlot  → N balls
+# 2) BallObservationPlot  → N balls + bubble dropout
 # ============================================================
 class BallObservationPlot(BasePlot):
-    def __init__(self, trajectories, noise_stddev=3.0, dropout_prob=0.05):
+    def __init__(self, trajectories, noise_stddev=3.0, dropout_prob=0.15):
         super().__init__(figsize=(12, 6))
         self.observers = [
             BallObservation(traj, noise_stddev, dropout_prob)
@@ -80,38 +83,60 @@ class BallObservationPlot(BasePlot):
             c = self.colors[i % len(self.colors)]
             data = obs.simulate_observations()
 
-            t = [p[0] for p in obs.trajectory]
-            true_y = [p[2] for p in obs.trajectory]
-            obs_y = [o[1][1] if o[1] is not None else np.nan for o in data]
+            # Extract X–Y trajectory
+            x = [p[1] for p in obs.trajectory]
+            y = [p[2] for p in obs.trajectory]
 
-            self.ax.plot(t, true_y, color=c, linewidth=2, label=f"True {i+1}")
-            self.ax.scatter(t, obs_y, color="cyan", s=20, alpha=0.6,
-                        label="Obs" if i == 0 else None)
+            # True trajectory
+            self.ax.plot(x, y, color=c, linewidth=2, label=f"True {i+1}")
 
-            # Merge consecutive dropouts
-            regions = []
-            active = False
-            start = None
-            for tt, o in data:
-                if o is None and not active:
-                    active = True
-                    start = tt
-                elif o is not None and active:
-                    regions.append((start, tt))
-                    active = False
-            if active:
-                regions.append((start, data[-1][0]))
+            # Observations
+            obs_x = [o[1][0] for o in data if o[1] is not None]
+            obs_y = [o[1][1] for o in data if o[1] is not None]
+            self.ax.scatter(obs_x, obs_y, color="gray", marker="x", s=20,
+                            label="Obs" if i == 0 else None)
 
-            # Plot merged dropout regions (single legend entry)
+            # Bubble-style dropout visualization
+            regions = merge_dropout(data)
+            traj_times = [p[0] for p in obs.trajectory]
+
             for j, (s, e) in enumerate(regions):
-                self.ax.axvspan(s, e, color="red", alpha=0.15,
-                            label="Dropout" if i == 0 and j == 0 else None)
+                mid = (s + e) / 2
 
-        self.finish("True vs Observed (with Dropout)", "Time (s)", "Y Position (m)")
+                # Find closest trajectory point
+                idx = np.argmin(np.abs(np.array(traj_times) - mid))
+                x_mid = x[idx]
+                y_mid = y[idx]
+
+                # Bubble size proportional to dropout duration
+                bubble_size = 600 * (e - s)
+
+                # Bubble
+                self.ax.scatter(
+                    x_mid, y_mid,
+                    s=1200,
+                    color="red",
+                    alpha=0.18,
+                    edgecolor="none",
+                    label="Dropout" if i == 0 and j == 0 else None
+                )
+
+                # Label
+                self.ax.text(
+                    x_mid, y_mid + 5,
+                    f"DROPOUT\n{mid:.2f}s",
+                    ha="center", va="center",
+                    fontsize=9, fontweight="bold",
+                    bbox=dict(boxstyle="round,pad=0.3",
+                              fc="yellow", ec="black")
+                )
+
+        self.finish("Observations with Dropout Bubbles",
+                    "X Position (m)", "Y Position (m)")
 
 
 # ============================================================
-# 3) ParticleFilterTrajectoryPlot  → 1 ball
+# 3) ParticleFilterTrajectoryPlot  → 1 ball + bubble dropout
 # ============================================================
 class ParticleFilterTrajectoryPlot(BasePlot):
     def __init__(self, trajectory, observations, estimates):
@@ -127,10 +152,26 @@ class ParticleFilterTrajectoryPlot(BasePlot):
 
         ox = [o[1][0] for o in self.obs if o[1] is not None]
         oy = [o[1][1] for o in self.obs if o[1] is not None]
-        self.ax.scatter(ox, oy, color="green", s=25, label="Obs")
+        self.ax.scatter(ox, oy, color="gray", marker="x", s=25, label="Obs")
 
-        for s, e in merge_dropout(self.obs):
-            self.ax.axvspan(s, e, color="red", alpha=0.15, label="Dropout")
+        # Bubble dropout
+        for j, (s, e) in enumerate(merge_dropout(self.obs)):
+            mid = (s + e) / 2
+            idx = np.argmin(np.abs(np.array([p[0] for p in self.traj]) - mid))
+            x_mid = self.traj[idx][1]
+            y_mid = self.traj[idx][2]
+
+            self.ax.scatter(x_mid, y_mid, s=900, color="red", alpha=0.18,
+                            edgecolor="none", label="Dropout" if j == 0 else None)
+
+            self.ax.text(
+                x_mid, y_mid + 5,
+                f"DROPOUT\n{mid:.2f}s",
+                ha="center", va="center",
+                fontsize=9, fontweight="bold",
+                bbox=dict(boxstyle="round,pad=0.3",
+                          fc="yellow", ec="black")
+            )
 
         ex = [e[0] for e in self.est]
         ey = [e[1] for e in self.est]
@@ -140,7 +181,7 @@ class ParticleFilterTrajectoryPlot(BasePlot):
 
 
 # ============================================================
-# 4) nBallTrajectoryPlot  → N balls (True + Est + Obs)
+# 4) nBallTrajectoryPlot  → N balls + bubble dropout
 # ============================================================
 class nBallTrajectoryPlot(BasePlot):
     def __init__(self, trajectories, observations, estimates):
@@ -164,11 +205,29 @@ class nBallTrajectoryPlot(BasePlot):
 
             ox = [o[1][0] for o in obs_seq if o[1] is not None]
             oy = [o[1][1] for o in obs_seq if o[1] is not None]
-            self.ax.scatter(ox, oy, color="cyan", s=12, alpha=0.6,
+            self.ax.scatter(ox, oy, color="gray", marker="x", s=15,
                             label="Obs" if i == 0 else None)
 
-            for s, e in merge_dropout(obs_seq):
-                self.ax.axvspan(s, e, color="red", alpha=0.15,
-                                label="Dropout" if i == 0 else None)
+            # Bubble dropout
+            for j, (s, e) in enumerate(merge_dropout(obs_seq)):
+                mid = (s + e) / 2
+                idx = np.argmin(np.abs(np.array([p[0] for p in traj]) - mid))
+                x_mid = traj[idx][1]
+                y_mid = traj[idx][2]
 
-        self.finish("N-Ball Trajectories (True / Est / Obs)", "X Position (m)", "Y Position (m)")
+                self.ax.scatter(
+                    x_mid, y_mid,
+                    s=900, color="red", alpha=0.18, edgecolor="none",
+                    label="Dropout" if i == 0 and j == 0 else None
+                )
+
+                self.ax.text(
+                    x_mid, y_mid + 5,
+                    f"DROPOUT\n{mid:.2f}s",
+                    ha="center", va="center",
+                    fontsize=9, fontweight="bold",
+                    bbox=dict(boxstyle="round,pad=0.3",
+                              fc="yellow", ec="black")
+                )
+
+        self.finish("N-Ball Trajectories (Bubble Dropout)", "X Position (m)", "Y Position (m)")
