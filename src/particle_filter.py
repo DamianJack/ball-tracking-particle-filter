@@ -66,10 +66,10 @@ class ParticleFilter:
         self.vx += self.rng.normal(0, self.noise * 0.5, self.num_particles)
         self.vy += self.rng.normal(0, self.noise * 0.5, self.num_particles)
 
-        # 3. Ground clamp: particles cannot exist below y=0
-        grounded          = self.y < 0
-        self.y[grounded]  = 0.0
-        self.vy[grounded] = 0.0
+        # # 3. Ground clamp: particles cannot exist below y=0
+        # grounded          = self.y < 0
+        # self.y[grounded]  = 0.0
+        # self.vy[grounded] = 0.0
 
         self._sync_particles()
         return self.particles
@@ -138,7 +138,7 @@ class ParticleFilter:
 # ======================================================================
 if __name__ == "__main__":
     launches = [
-        {"initial_position": [0, 0], "speed": 50, "angle_degrees": 45}
+        {"initial_position": [10, 15], "speed": 50, "angle_degrees": 45}
     ]
 
     trajectories = simulate_n_balls(launches, dt=0.1)
