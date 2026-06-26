@@ -19,15 +19,16 @@ class Particle(Ball):
 
 
 class ParticleFilter:
-    def __init__(self, num_particles: int, ball_observation: BallObservation,
+    def __init__(self, num_particles: int, noise_stddev: float,
                  area: float = 100.0, noise: float = 0.2, gravity: float = -9.81):
 
         self.num_particles    = num_particles
-        self.ball_observation = ball_observation
         self.area             = area
         self.noise            = noise
         self.gravity          = gravity
+        self._sigma           = noise_stddev
         self.rng              = np.random.default_rng()
+        self.particles_history = []
         self.initialize_particles()
 
     # ------------------------------------------------------------------
@@ -65,10 +66,10 @@ class ParticleFilter:
         self.vx += self.rng.normal(0, self.noise * 0.5, self.num_particles)
         self.vy += self.rng.normal(0, self.noise * 0.5, self.num_particles)
 
-        # 3. Ground clamp: particles cannot exist below y=0
-        grounded          = self.y < 0
-        self.y[grounded]  = 0.0
-        self.vy[grounded] = 0.0
+        # # 3. Ground clamp: particles cannot exist below y=0
+        # grounded          = self.y < 0
+        # self.y[grounded]  = 0.0
+        # self.vy[grounded] = 0.0
 
         self._sync_particles()
         return self.particles
@@ -80,9 +81,7 @@ class ParticleFilter:
         obs_x, obs_y = observation
         distances    = np.sqrt((self.x - obs_x)**2 + (self.y - obs_y)**2)
 
-        sigma = self.ball_observation.noise_stddev
-
-        likelihoods  = np.exp(-0.5 * (distances / sigma)**2)
+        likelihoods  = np.exp(-0.5 * (distances / self._sigma)**2)
         likelihoods += 1e-300          # prevent all-zero weights
 
         return likelihoods / likelihoods.sum()
@@ -92,7 +91,8 @@ class ParticleFilter:
     # ------------------------------------------------------------------
     def resample(self):
         neff = 1.0 / np.sum(np.square(self.weights))
-        if neff >= self.num_particles / 2:
+       # if neff >= self.num_particles / 2:
+        if neff >= self.num_particles * 0.9:
             return  # particles are well-spread; skip resampling
         indices      = self.rng.choice(self.num_particles, size=self.num_particles,
                                       replace=True, p=self.weights)
@@ -129,6 +129,7 @@ class ParticleFilter:
     def step(self, dt: float, observation):
         self.predict(dt)
         self.update(observation)
+        self.particles_history.append(self.particles.copy())
         return self.estimate()
 
 
@@ -137,21 +138,20 @@ class ParticleFilter:
 # ======================================================================
 if __name__ == "__main__":
     launches = [
-        {"initial_position": [0, 0], "speed": 50, "angle_degrees": 45},
-        {"initial_position": [0, 0], "speed": 60, "angle_degrees": 30},
+        {"initial_position": [10, 15], "speed": 50, "angle_degrees": 45}
     ]
 
     trajectories = simulate_n_balls(launches, dt=0.1)
-
+    noise_stddev = 8.0
     observers = [
-        BallObservation(traj, noise_stddev=8.0, dropout_prob=0.2)
+        BallObservation(traj, noise_stddev=noise_stddev, dropout_prob=0.2)
         for traj in trajectories
     ]
 
     observations_ball0 = observers[0].simulate_observations()
 
     # Single filter run — estimates used for both printing and plotting
-    pf = ParticleFilter(num_particles=1000, ball_observation=observers[0], area=100.0, noise=1.0)
+    pf = ParticleFilter(num_particles=1000, noise_stddev=noise_stddev, area=100.0, noise=1.0)
     estimates = []
     for t, obs in observations_ball0:
         estimate = pf.step(dt=0.1, observation=obs)
@@ -166,3 +166,12 @@ if __name__ == "__main__":
         estimates=estimates
     )
     plotter.visualize()
+ 
+    from plotting import ParticleEvolutionAnimation
+
+    anim = ParticleEvolutionAnimation(
+        particle_filter=pf,
+        trajectory=trajectories[0],
+        estimates=estimates
+    )
+    anim.animate()
