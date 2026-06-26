@@ -231,3 +231,71 @@ class nBallTrajectoryPlot(BasePlot):
                 )
 
         self.finish("N-Ball Trajectories (Bubble Dropout)", "X Position (m)", "Y Position (m)")
+
+# ============================================================
+# 5) BallCountPlot  → shows number of balls over time
+# ============================================================
+class BallCountPlot(BasePlot):
+    def __init__(self, time, estimated_balls, observed_balls):
+        super().__init__(figsize=(10, 6))
+        self.time = time
+        self.estimated_balls = estimated_balls
+        self.observed_balls = observed_balls
+
+    def visualize(self):
+        self.ax.plot(self.time, self.estimated_balls, 'b--', linewidth=2, label='Estimated Balls')
+        self.ax.plot(self.time, self.observed_balls, 'c:', linewidth=2, label='Observations')
+        self.finish("Ball Count Over Time", "Time (s)", "Number of Balls")
+
+# ============================================================
+# 6) TrackingErrorPlot → shows error vs dropout periods
+# ============================================================
+class TrackingErrorPlot(BasePlot):
+    def __init__(self, time, errors, dropout_regions):
+        super().__init__(figsize=(12, 6))
+        self.time = time
+        self.errors = errors
+        self.dropout_regions = dropout_regions
+
+    def visualize(self):
+        # Dropout shading
+        for j, (s, e) in enumerate(self.dropout_regions):
+            self.ax.axvspan(s, e, color="red", alpha=0.15,
+                            label="Dropout Window" if j == 0 else None)
+
+        # Error curves
+        for i, (ball_idx, err) in enumerate(self.errors.items()):
+            c = self.colors[i % len(self.colors)]
+            self.ax.plot(self.time[:len(err)], err, color=c, linewidth=2,
+                         label=f"Ball {ball_idx} Error")
+
+        self.finish("Tracking Error vs Sensor Dropout Periods",
+                    "Time (s)", "Position Error (m)")
+
+def compute_tracking_errors(trajectories, estimated_trajectories):
+    errors = {}
+
+    for b, traj in enumerate(trajectories):
+        true_xy = [p[1:3] for p in traj]      # (x, y)
+        est_xy  = estimated_trajectories[b]   # (x, y, vx, vy)
+
+        n = min(len(true_xy), len(est_xy))
+        err = []
+
+        for i in range(n):
+            tx, ty = true_xy[i]
+            ex, ey = est_xy[i][:2]            # <-- FIX HERE
+            err.append(np.linalg.norm([tx - ex, ty - ey]))
+
+        errors[b] = err
+
+    return errors
+
+
+
+def extract_dropout_regions(obs_sequences):
+    regions = []
+    for seq in obs_sequences:
+        for s, e in merge_dropout(seq):
+            regions.append((s, e))
+    return regions
